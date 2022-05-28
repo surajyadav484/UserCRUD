@@ -1,4 +1,6 @@
 const User = require("../model/user");
+const { validationResult } = require("express-validator");
+const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
 
 exports.getUser = (req, res, next) => {
@@ -14,18 +16,40 @@ exports.postUser = (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
   const confirmPassword = req.body.confirmPassword;
-  const user = new User({
-    name,
-    email,
-    password,
-    confirmPassword,
-  });
-  user
-    .save()
-    .then((result) => {
-      res.json("user added successfully");
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    console.log(errors.array()[0]);
+    return res.status(400).send(errors.array()[0].msg);
+  }
+  User.findOne({ email })
+    .then((user) => {
+      if (!user) {
+        if (password === confirmPassword) {
+          return bcrypt.hash(password, 12);
+        } else {
+          throw new Error("Password and Confirm Password should match!");
+        }
+      } else {
+        throw new Error("Email already exists. Please try with another Email!");
+      }
     })
-    .catch((err) => console.log(err));
+    .then((hashedPassword) => {
+      const user = new User({
+        name,
+        email,
+        password: hashedPassword,
+      });
+
+      return user.save();
+    })
+    .then((result) => {
+      res.status(200).json(result);
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(400).send(err);
+    });
 };
 
 exports.getUserById = async (req, res) => {
@@ -71,5 +95,24 @@ exports.deleteUser = async (req, res) => {
     res.status(200).json(result);
   } catch (err) {
     console.log(err);
+  }
+};
+
+exports.postLogin = async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      throw new Error("Email or Passoword does not mathch");
+    }
+    const result = await bcrypt.compare(password, user.password);
+    if (result) {
+      res.status(200).send("Logged in successfully!!");
+    } else {
+      throw new Error("Email or Passoword does not mathch");
+    }
+  } catch (err) {
+    console.log(err);
+    res.status(400).send(err);
   }
 };
