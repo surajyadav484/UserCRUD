@@ -39,4 +39,7 @@ router.delete("/deleteUser/:userId", userController.deleteUser);
 //POST - http://localhost:8080/login
 router.post("/login", userController.postLogin);
 
+//POST - http://localhost:8080/resetPassword
+router.post("/resetPassword", userController.resetPasswordlink);
+
 module.exports = router;

@@ -2,6 +2,16 @@ const User = require("../model/user");
 const { validationResult } = require("express-validator");
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "youremail@gmail.com",
+    pass: "yourpassword",
+  },
+});
 
 exports.getUser = (req, res, next) => {
   User.find()
@@ -114,5 +124,41 @@ exports.postLogin = async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(400).send(err);
+  }
+};
+
+exports.resetPasswordlink = async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      throw new Error(
+        "User with entered email does not exist. Please use registered email"
+      );
+    }
+    const token = crypto.randomBytes(32).toString("hex");
+    console.log(token);
+
+    const mailOptions = {
+      from: "youremail@gmail.com",
+      to: email,
+      subject: "Reset Passowrd",
+      html: `Dear User,
+        Click <a href = "http://localhost:8080/${token}"> here </a> to reset your password!
+      `,
+    };
+    transporter.sendMail(mailOptions, function (error, info) {
+      if (error) {
+        console.log("error", error);
+      } else {
+        console.log(
+          "Password Reset Email sent on your registered email Id" +
+            info.response
+        );
+      }
+    });
+  } catch (err) {
+    console.log(err);
+    res.send(err);
   }
 };
